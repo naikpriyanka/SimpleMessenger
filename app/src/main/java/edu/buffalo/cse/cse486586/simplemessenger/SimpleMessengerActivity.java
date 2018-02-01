@@ -1,14 +1,5 @@
 package edu.buffalo.cse.cse486586.simplemessenger;
 
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.UnknownHostException;
-
-import edu.buffalo.cse.cse486586.simplemessenger.R;
-
 import android.app.Activity;
 import android.content.Context;
 import android.os.AsyncTask;
@@ -21,18 +12,27 @@ import android.view.View.OnKeyListener;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.UnknownHostException;
+
 /**
  * SimpleMessengerActivity creates an Activity (i.e., a screen) that has an input box and a display
  * box. This is almost like main() for a typical C or Java program.
- * 
+ * <p>
  * Please read http://developer.android.com/training/basics/activity-lifecycle/index.html first
  * to understand what an Activity is.
- * 
+ * <p>
  * Please also take look at how this Activity is declared as the main Activity in
  * AndroidManifest.xml file in the root of the project directory (that is, using an intent filter).
- * 
- * @author stevko
  *
+ * @author stevko
  */
 public class SimpleMessengerActivity extends Activity {
     static final String TAG = SimpleMessengerActivity.class.getSimpleName();
@@ -40,7 +40,9 @@ public class SimpleMessengerActivity extends Activity {
     static final String REMOTE_PORT1 = "11112";
     static final int SERVER_PORT = 10000;
 
-    /** Called when the Activity is first created. */
+    /**
+     * Called when the Activity is first created.
+     */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -64,6 +66,7 @@ public class SimpleMessengerActivity extends Activity {
         TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         String portStr = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
         final String myPort = String.valueOf((Integer.parseInt(portStr) * 2));
+        System.out.println("SimpleMessengerActivity.onCreate here after telephony");
 
         try {
             /*
@@ -75,7 +78,9 @@ public class SimpleMessengerActivity extends Activity {
              * http://developer.android.com/reference/android/os/AsyncTask.html
              */
             ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
+            System.out.println("Created server socket");
             new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, serverSocket);
+            System.out.println("Executing server socket");
         } catch (IOException e) {
             /*
              * Log is a good way to debug your code. LogCat prints out all the messages that
@@ -98,7 +103,7 @@ public class SimpleMessengerActivity extends Activity {
          * the use of "android:id="@+id/edit_text""
          */
         final EditText editText = (EditText) findViewById(R.id.edit_text);
-        
+
         /*
          * Register an OnKeyListener for the input box. OnKeyListener is an event handler that
          * processes each key event. The purpose of the following code is to detect an enter key
@@ -110,6 +115,7 @@ public class SimpleMessengerActivity extends Activity {
             public boolean onKey(View v, int keyCode, KeyEvent event) {
                 if ((event.getAction() == KeyEvent.ACTION_DOWN) &&
                         (keyCode == KeyEvent.KEYCODE_ENTER)) {
+                    System.out.println("Here in on key listener");
                     /*
                      * If the key is pressed (i.e., KeyEvent.ACTION_DOWN) and it is an enter key
                      * (i.e., KeyEvent.KEYCODE_ENTER), then we display the string. Then we create
@@ -129,6 +135,7 @@ public class SimpleMessengerActivity extends Activity {
                      * http://developer.android.com/reference/android/os/AsyncTask.html
                      */
                     new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, msg, myPort);
+                    System.out.println("Executing client task");
                     return true;
                 }
                 return false;
@@ -139,10 +146,10 @@ public class SimpleMessengerActivity extends Activity {
     /***
      * ServerTask is an AsyncTask that should handle incoming messages. It is created by
      * ServerTask.executeOnExecutor() call in SimpleMessengerActivity.
-     * 
+     *
      * Please make sure you understand how AsyncTask works by reading
      * http://developer.android.com/reference/android/os/AsyncTask.html
-     * 
+     *
      * @author stevko
      *
      */
@@ -151,19 +158,48 @@ public class SimpleMessengerActivity extends Activity {
         @Override
         protected Void doInBackground(ServerSocket... sockets) {
             ServerSocket serverSocket = sockets[0];
-            
             /*
-             * TODO: Fill in your server code that receives messages and passes them
+             * COMPLETED: Fill in your server code that receives messages and passes them
              * to onProgressUpdate().
              */
+            System.out.println("got Server socket" + serverSocket.getLocalPort());
+            Socket socket = null;
+            DataInputStream in = null;
+            String msgReceived = null;
+            try {
+                socket = serverSocket.accept();
+                System.out.println("Accepted server socket");
+                in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+                System.out.println("Received input from the socket");
+                msgReceived = in.readUTF();
+                System.out.println("Server " + msgReceived);
+            } catch (IOException e) {
+                Log.e(TAG, "Error accepting socket" + e);
+            } finally {
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error closing socket" + e);
+                    }
+                }
+                if (in != null) {
+                    try {
+                        in.close();
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error closing input stream" + e);
+                    }
+                }
+            }
             return null;
         }
 
-        protected void onProgressUpdate(String...strings) {
+        protected void onProgressUpdate(String... strings) {
             /*
              * The following code displays what is received in doInBackground().
              */
             String strReceived = strings[0].trim();
+            System.out.println("Message in on Progress Update " + strReceived);
             TextView remoteTextView = (TextView) findViewById(R.id.remote_text_display);
             remoteTextView.append(strReceived + "\t\n");
             TextView localTextView = (TextView) findViewById(R.id.local_text_display);
@@ -175,7 +211,7 @@ public class SimpleMessengerActivity extends Activity {
              * For more information on file I/O on Android, please take a look at
              * http://developer.android.com/training/basics/data-storage/files.html
              */
-            
+
             String filename = "SimpleMessengerOutput";
             String string = strReceived + "\n";
             FileOutputStream outputStream;
@@ -196,7 +232,7 @@ public class SimpleMessengerActivity extends Activity {
      * ClientTask is an AsyncTask that should send a string over the network.
      * It is created by ClientTask.executeOnExecutor() call whenever OnKeyListener.onKey() detects
      * an enter key press event.
-     * 
+     *
      * @author stevko
      *
      */
@@ -204,23 +240,52 @@ public class SimpleMessengerActivity extends Activity {
 
         @Override
         protected Void doInBackground(String... msgs) {
+            /*
+             * COMPLETED: Fill in your client code that sends out a message.
+            */
+            DataOutputStream out = null;
+            Socket socket = null;
             try {
                 String remotePort = REMOTE_PORT0;
+                System.out.println("Remote port 0 " + remotePort);
                 if (msgs[1].equals(REMOTE_PORT0))
                     remotePort = REMOTE_PORT1;
 
-                Socket socket = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
+                System.out.println("Message 0 : " + msgs[0]);
+                System.out.println("Message 1 : " + msgs[1]);
+                System.out.println("Remote port 1 : if changed" + remotePort);
+
+                socket = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
                         Integer.parseInt(remotePort));
-                
+
+                System.out.println("Socket created in client " + socket.getLocalPort());
+
                 String msgToSend = msgs[0];
-                /*
-                 * TODO: Fill in your client code that sends out a message.
-                 */
-                socket.close();
+                System.out.println("Received msg to send" + msgToSend);
+
+                out = new DataOutputStream(socket.getOutputStream());
+                System.out.println("Output stream " + out.toString());
+                out.writeUTF(msgToSend);
+                System.out.println("Write UTF");
             } catch (UnknownHostException e) {
                 Log.e(TAG, "ClientTask UnknownHostException");
             } catch (IOException e) {
                 Log.e(TAG, "ClientTask socket IOException");
+            } finally {
+                if (out != null) {
+                    try {
+                        out.close();
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error closing output data stream" + e);
+                    }
+                }
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error closing socket" + e);
+                    }
+                }
             }
 
             return null;
