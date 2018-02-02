@@ -66,7 +66,6 @@ public class SimpleMessengerActivity extends Activity {
         TelephonyManager tel = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
         String portStr = tel.getLine1Number().substring(tel.getLine1Number().length() - 4);
         final String myPort = String.valueOf((Integer.parseInt(portStr) * 2));
-        System.out.println("SimpleMessengerActivity.onCreate here after telephony");
 
         try {
             /*
@@ -78,9 +77,7 @@ public class SimpleMessengerActivity extends Activity {
              * http://developer.android.com/reference/android/os/AsyncTask.html
              */
             ServerSocket serverSocket = new ServerSocket(SERVER_PORT);
-            System.out.println("Created server socket");
             new ServerTask().executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, serverSocket);
-            System.out.println("Executing server socket");
         } catch (IOException e) {
             /*
              * Log is a good way to debug your code. LogCat prints out all the messages that
@@ -115,7 +112,6 @@ public class SimpleMessengerActivity extends Activity {
             public boolean onKey(View v, int keyCode, KeyEvent event) {
                 if ((event.getAction() == KeyEvent.ACTION_DOWN) &&
                         (keyCode == KeyEvent.KEYCODE_ENTER)) {
-                    System.out.println("Here in on key listener");
                     /*
                      * If the key is pressed (i.e., KeyEvent.ACTION_DOWN) and it is an enter key
                      * (i.e., KeyEvent.KEYCODE_ENTER), then we display the string. Then we create
@@ -135,7 +131,6 @@ public class SimpleMessengerActivity extends Activity {
                      * http://developer.android.com/reference/android/os/AsyncTask.html
                      */
                     new ClientTask().executeOnExecutor(AsyncTask.SERIAL_EXECUTOR, msg, myPort);
-                    System.out.println("Executing client task");
                     return true;
                 }
                 return false;
@@ -162,17 +157,17 @@ public class SimpleMessengerActivity extends Activity {
              * COMPLETED: Fill in your server code that receives messages and passes them
              * to onProgressUpdate().
              */
-            System.out.println("got Server socket" + serverSocket.getLocalPort());
             Socket socket = null;
             DataInputStream in = null;
-            String msgReceived = null;
             try {
+                //listening to the client request/ Waits until client connects to server
                 socket = serverSocket.accept();
-                System.out.println("Accepted server socket");
+                //Get input stream of data send by client over the socket
                 in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-                System.out.println("Received input from the socket");
-                msgReceived = in.readUTF();
-                System.out.println("Server " + msgReceived);
+                //Read data
+                String msgReceived = in.readUTF();
+                //Publish the msg received to be displayed on the UI
+                publishProgress(msgReceived);
             } catch (IOException e) {
                 Log.e(TAG, "Error accepting socket" + e);
             } finally {
@@ -199,7 +194,6 @@ public class SimpleMessengerActivity extends Activity {
              * The following code displays what is received in doInBackground().
              */
             String strReceived = strings[0].trim();
-            System.out.println("Message in on Progress Update " + strReceived);
             TextView remoteTextView = (TextView) findViewById(R.id.remote_text_display);
             remoteTextView.append(strReceived + "\t\n");
             TextView localTextView = (TextView) findViewById(R.id.local_text_display);
@@ -247,26 +241,17 @@ public class SimpleMessengerActivity extends Activity {
             Socket socket = null;
             try {
                 String remotePort = REMOTE_PORT0;
-                System.out.println("Remote port 0 " + remotePort);
                 if (msgs[1].equals(REMOTE_PORT0))
                     remotePort = REMOTE_PORT1;
-
-                System.out.println("Message 0 : " + msgs[0]);
-                System.out.println("Message 1 : " + msgs[1]);
-                System.out.println("Remote port 1 : if changed" + remotePort);
 
                 socket = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
                         Integer.parseInt(remotePort));
 
-                System.out.println("Socket created in client " + socket.getLocalPort());
-
                 String msgToSend = msgs[0];
-                System.out.println("Received msg to send" + msgToSend);
-
+                //Create an output stream to send data to the server
                 out = new DataOutputStream(socket.getOutputStream());
-                System.out.println("Output stream " + out.toString());
+                //Write msg to an output stream
                 out.writeUTF(msgToSend);
-                System.out.println("Write UTF");
             } catch (UnknownHostException e) {
                 Log.e(TAG, "ClientTask UnknownHostException");
             } catch (IOException e) {
