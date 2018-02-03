@@ -13,13 +13,10 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.BufferedInputStream;
-import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -74,7 +71,7 @@ public class SimpleMessengerActivity extends Activity {
             /*
              * Create a server socket as well as a thread (AsyncTask) that listens on the server
              * port.
-             * 
+             * ServerSocket is a socket which servers can use to listen and accept requests from clients
              * AsyncTask is a simplified thread construct that Android provides. Please make sure
              * you know how it works by reading
              * http://developer.android.com/reference/android/os/AsyncTask.html
@@ -161,15 +158,36 @@ public class SimpleMessengerActivity extends Activity {
              * to onProgressUpdate().
              */
             Socket socket = null;
-            BufferedReader in = null;
+            DataInputStream in = null;
             try {
-                if(serverSocket != null) {
-                    //listening to the client request/ Waits until client connects to server
+                if (serverSocket != null) {
+                    /*
+                     * listening to the client request/ Waits until client connects to server
+                     *
+                     * New socket is created if the acceptance is successful. So that the old
+                     * socket can be used to listen to other clients on the network. The new
+                     * socket is dedicated to the client which will have client's IP address
+                     * and port as well as its own port number.
+                     *
+                     */
                     socket = serverSocket.accept();
-                    //Get input stream of data send by client over the socket
-                    in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    //Read data
-                    String msgReceived = in.readLine();
+                    /*
+                     * Get input stream of data send by client over the socket
+                     *
+                     *
+                     * Reasons to use DataInputStream instead of BufferedReader
+                     * 1. DataInputStream works with binary data instead of character data
+                     * 2. Since it uses binary data the memory consumption is less
+                     * 3. Since BufferedReader converts bytes to characters, the encoding/decoding
+                     * is handled internally (may be depending on the OS which will have their own
+                     * default encoding). So it is not meaningful unless and until someone knows
+                     * which encoding technique was used. DataInputStream is platform independent
+                     * 4. DataInputStream provides facility to read data as primitive types
+                     *
+                     */
+                    in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
+                    //Read data as String. That string can have as many lines as it wants
+                    String msgReceived = in.readUTF();
                     //Publish the msg received to be displayed on the UI
                     publishProgress(msgReceived);
                 } else {
@@ -213,6 +231,10 @@ public class SimpleMessengerActivity extends Activity {
              * http://developer.android.com/training/basics/data-storage/files.html
              */
 
+            /*
+             * This file is stored in data/data/package_name/files/filename
+             */
+
             String filename = "SimpleMessengerOutput";
             String string = strReceived + "\n";
             FileOutputStream outputStream;
@@ -244,32 +266,35 @@ public class SimpleMessengerActivity extends Activity {
             /*
              * COMPLETED: Fill in your client code that sends out a message.
             */
-            PrintWriter out = null;
+            DataOutputStream out = null;
             Socket socket = null;
             try {
                 String remotePort = REMOTE_PORT0;
                 if (msgs[1].equals(REMOTE_PORT0))
                     remotePort = REMOTE_PORT1;
 
+                /*
+                 * host loopback interface 10.0.2.2 (i.e., 127.0.0.1 for development machine)
+                 */
                 socket = new Socket(InetAddress.getByAddress(new byte[]{10, 0, 2, 2}),
                         Integer.parseInt(remotePort));
 
                 String msgToSend = msgs[0];
-                //Create an output stream to send data to the server
-                out = new PrintWriter(socket.getOutputStream());
-                //Write msg to an output stream
-                out.print(msgToSend);
+                //Create an output stream to send data to the server over the socket
+                out = new DataOutputStream(socket.getOutputStream());
+                //Write msg to an output stream with UTF encoding
+                out.writeUTF(msgToSend);
             } catch (UnknownHostException e) {
                 Log.e(TAG, "ClientTask UnknownHostException");
             } catch (IOException e) {
                 Log.e(TAG, "ClientTask socket IOException");
             } finally {
                 if (out != null) {
-//                    try {
+                    try {
                         out.close();
-//                    } catch (IOException e) {
-//                        Log.e(TAG, "Error closing output data stream" + e);
-//                    }
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error closing output data stream" + e);
+                    }
                 }
                 if (socket != null) {
                     try {
