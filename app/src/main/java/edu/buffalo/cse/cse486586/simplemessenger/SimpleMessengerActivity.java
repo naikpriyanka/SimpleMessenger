@@ -13,10 +13,13 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -158,31 +161,35 @@ public class SimpleMessengerActivity extends Activity {
              * to onProgressUpdate().
              */
             Socket socket = null;
-            DataInputStream in = null;
+            BufferedReader in = null;
             try {
-                //listening to the client request/ Waits until client connects to server
-                socket = serverSocket.accept();
-                //Get input stream of data send by client over the socket
-                in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-                //Read data
-                String msgReceived = in.readUTF();
-                //Publish the msg received to be displayed on the UI
-                publishProgress(msgReceived);
+                if(serverSocket != null) {
+                    //listening to the client request/ Waits until client connects to server
+                    socket = serverSocket.accept();
+                    //Get input stream of data send by client over the socket
+                    in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                    //Read data
+                    String msgReceived = in.readLine();
+                    //Publish the msg received to be displayed on the UI
+                    publishProgress(msgReceived);
+                } else {
+                    Log.e(TAG, "The server socket is null");
+                }
             } catch (IOException e) {
                 Log.e(TAG, "Error accepting socket" + e);
             } finally {
-                if (socket != null) {
-                    try {
-                        socket.close();
-                    } catch (IOException e) {
-                        Log.e(TAG, "Error closing socket" + e);
-                    }
-                }
                 if (in != null) {
                     try {
                         in.close();
                     } catch (IOException e) {
                         Log.e(TAG, "Error closing input stream" + e);
+                    }
+                }
+                if (socket != null) {
+                    try {
+                        socket.close();
+                    } catch (IOException e) {
+                        Log.e(TAG, "Error closing socket" + e);
                     }
                 }
             }
@@ -237,7 +244,7 @@ public class SimpleMessengerActivity extends Activity {
             /*
              * COMPLETED: Fill in your client code that sends out a message.
             */
-            DataOutputStream out = null;
+            PrintWriter out = null;
             Socket socket = null;
             try {
                 String remotePort = REMOTE_PORT0;
@@ -249,20 +256,20 @@ public class SimpleMessengerActivity extends Activity {
 
                 String msgToSend = msgs[0];
                 //Create an output stream to send data to the server
-                out = new DataOutputStream(socket.getOutputStream());
+                out = new PrintWriter(socket.getOutputStream());
                 //Write msg to an output stream
-                out.writeUTF(msgToSend);
+                out.print(msgToSend);
             } catch (UnknownHostException e) {
                 Log.e(TAG, "ClientTask UnknownHostException");
             } catch (IOException e) {
                 Log.e(TAG, "ClientTask socket IOException");
             } finally {
                 if (out != null) {
-                    try {
+//                    try {
                         out.close();
-                    } catch (IOException e) {
-                        Log.e(TAG, "Error closing output data stream" + e);
-                    }
+//                    } catch (IOException e) {
+//                        Log.e(TAG, "Error closing output data stream" + e);
+//                    }
                 }
                 if (socket != null) {
                     try {
